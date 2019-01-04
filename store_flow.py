@@ -16,13 +16,10 @@ from sys import platform
 # If you run `make install` (default path is `/usr/local/python` for Ubuntu), you can also access the OpenPose/python module from there. This will install OpenPose and the python library at your desired installation path. Ensure that this is in your python path in order to use it.
 # sys.path.append('/usr/local/python')
 dir_path = os.path.dirname(os.path.realpath(__file__))
+print(dir_path)
 
-if platform == "win32":
-    sys.path.append(dir_path + '/../../python/openpose/')
-else:
-    sys.path.append('../../python')
 try:
-    from openpose import *
+    from openpose.openpose import *
 except:
     raise Exception('Error: OpenPose library could not be found. Did you enable `BUILD_PYTHON` in CMake and have this Python script in the right folder?')
 
@@ -42,8 +39,9 @@ def pross():
     params["num_gpu_start"] = 0
     params["disable_blending"] = False
     # Ensure you point to the correct path where models are located
-    params["default_model_folder"] = dir_path + "/../../../models/"
+    params["default_model_folder"] = "/woody/software/source/openpose2019/models/"
     # Construct OpenPose object allocates GPU memory
+
     openpose = OpenPose(params)
 
     #video_path = "/woody/software/source/openpose/examples/media/video.avi"
@@ -65,7 +63,7 @@ def pross():
        _, frame = video.read()
        if frame is None:
           break
-       if f_count % 15 == 0:
+       if f_count % 10 == 0:
             st = time.time()
             output_image = frame
             keypoints,scores,output_image = openpose.forward(frame, True)
@@ -75,9 +73,6 @@ def pross():
             flag = False
             continuity = False
             key = "image_info_" + str(index)
-            #cv2.imshow("image",image)
-            #cv2.waitKey(0)
-            #print("start ===============" + key)
 
             for keypoint in keypoints:
                 if calcBuleRate(image,[keypoint[12][0],keypoint[12][1]], [keypoint[9][0],keypoint[9][1]], [keypoint[2][0],keypoint[2][1]],[keypoint[5][0],keypoint[5][1]]) == False:
@@ -113,14 +108,14 @@ def pross():
                 y3 = keypoint[14][1]
                 la_result,la_flag= calcKneeAngle(x1,y1,x2,y2,x3,y3)
                 la_len_result,la_len_flag = calcLenRate(x1,y1,x2,y2,x3,y3)
-                if  ra_flag and la_flag :
+                if ra_flag and la_flag:
                     flag = True
-                if  ra_len_flag and la_len_flag :
+                if ra_len_flag and la_len_flag:
                     flag = True
                 if (r_flag or l_flag) and (abs(r_result - l_result) <= 30) and (ra_result or la_result):
                     flag = True
-                if la_result >= 170 or ra_result >= 170:
-                    flag = False
+                #if la_result >= 170 or ra_result >= 170:
+                #   flag = False
 
                 if (la_len_result >= 0.9 and la_len_result <= 1.09) or (ra_len_result >= 0.9 and ra_len_result <= 1.09):
                     flag = False
@@ -130,7 +125,6 @@ def pross():
 
             if continuity:
                 v_flag = False
-                #print(">>>>>" + str(up_imageArray))
                 if len(up_imageArray) >= 1:
                     if len(continuityArray) >= 1:
                         for u_index in range(len(up_imageArray)):
