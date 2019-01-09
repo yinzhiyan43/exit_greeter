@@ -16,7 +16,7 @@ def calcBuleRate(image, left0, left1, right0, right1):
 
     thresholded = cv2.morphologyEx(thresholded,cv2.MORPH_CLOSE,element)
 
-    rateValue = 0.4
+    rateValue = 0.6
     if (left1[0] - left0[0]) < 50:
       if (left0[0]-25) > 0:
         left0[0] = left0[0]-25
@@ -26,11 +26,11 @@ def calcBuleRate(image, left0, left1, right0, right1):
         right0[0] = right0[0]+25
       if (right1[0]-25) > 0:
         right1[0] = right1[0]-25
-      rateValue = 0.2
+      rateValue = 0.3
     box = np.array([[left0,left1, right0, right1]], dtype = np.int32)
     maskImage = np.zeros(image.shape[:2], dtype = "uint8")
     cv2.polylines(maskImage, box, 1, 255)
-    totalArea = calcTotalArea(cv2.fillPoly(maskImage, box, 255));
+    totalArea = calcTotalArea(cv2.fillPoly(maskImage, box, 255))
 
     blueArea = calcBlueArea(cv2.bitwise_and(thresholded, thresholded, mask=maskImage))
     #cv2.imshow("maskImage",cv2.bitwise_and(thresholded, thresholded, mask=maskImage))
@@ -45,14 +45,15 @@ def calcBuleRate(image, left0, left1, right0, right1):
         return False,0
     if (blueArea/totalArea) >= rateValue:
         return True,blueArea/totalArea
-    if (blueArea/totalArea) < rateValue and rateValue == 0.4:
+
+    if (blueArea/totalArea) < rateValue and rateValue == 0.6:
         mbox = np.array([[mleft0,mleft1, mright0, mright1]], dtype = np.int32)
         mmaskImage = np.zeros(image.shape[:2], dtype = "uint8")
         cv2.polylines(mmaskImage, mbox, 1, 255)
         mtotalArea = calcTotalArea(cv2.fillPoly(mmaskImage, mbox, 255))
         mblueArea = calcBlueArea(cv2.bitwise_and(thresholded, thresholded, mask=mmaskImage))
 
-    print(((blueArea-mblueArea)/(totalArea-mtotalArea)))
+    #print(((blueArea-mblueArea)/(totalArea-mtotalArea)))
     return ((blueArea-mblueArea)/(totalArea-mtotalArea)) >= rateValue,(blueArea-mblueArea)/(totalArea-mtotalArea)
 
 def calcTotalArea(maskImage):
