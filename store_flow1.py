@@ -9,35 +9,22 @@ import numpy as np
 import cmath
 import redis
 import logging
+from opencv import *
 from tracker import Tracker
-
+from websocket import websocket_server
 from sys import platform
 
-
+# Remember to add your installation path here
+# Option a
+# Option b
+# If you run `make install` (default path is `/usr/local/python` for Ubuntu), you can also access the OpenPose/python module from there. This will install OpenPose and the python library at your desired installation path. Ensure that this is in your python path in order to use it.
+# sys.path.append('/usr/local/python')
 dir_path = os.path.dirname(os.path.realpath(__file__))
-
-#redis = redis.Redis(host='172.16.0.13', port=6379, db=0)
-
 redis = redis.Redis(host='localhost', port=6379, db=0)
 
-
-
-#设置连续多少帧数有做坐报警
-APM_TOTAIL = 8
-#设置蓝色分数比例
-APM_BULE_SCORE = 0.6
-#设置蓝大于色分数比例次数，表示为True
-APM_BULE_COUNT = 3
-
-#检查是否连续多少帧数没有坐下数据
 E_TOTAIL = 10
-#在某段次数超过该数，就判断是坐行为
+APM_TOTAIL = 8
 E_COUNT = 5
-
-#颜色范围设置
-LOW_COLOR_SCALAR = [92, 79, 25]
-HIGH_COLOR_SCALAR = [140, 255, 255]
-
 for elem in redis.keys():
     redis.delete(elem)
 
@@ -81,8 +68,11 @@ def pross():
 
     openpose = OpenPose(params)
 
+    web_server = websocket_server(9000)
+    web_server.start()
+    websocket_server.notify("test")
     tracker = Tracker(link=50, match=0.3)
-    #video_path = "rtsp://172.16.3.26/test"
+    video_path = "rtsp://172.16.3.26/test"
     #video_path = "/woody/software/source/openpose/examples/media/video.avi"
     video_path = "/home/woody/tmp/openpose/test.mp4"
     #video_path = "/home/woody/tmp/openpose/video/4804_exit_overvie.mp4"
@@ -92,10 +82,10 @@ def pross():
         logger.info("can not open the video")
         exit(1)
 
-    #fps = video.get(cv2.CAP_PROP_FPS)
-    #size = (int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    fps = video.get(cv2.CAP_PROP_FPS)
+    size = (int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
-    #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     #w_video = cv2.VideoWriter("/home/woody/tmp/openpose//aaa.mp4", fourcc, fps, size,True)
     index = 1
     img_index = 1
@@ -113,7 +103,7 @@ def pross():
         if f_count % 15 == 0:
             st = time.time()
             output_image = frame
-            keypoints,scores = openpose.forward(frame, False)
+            keypoints,scores = openpose.forward(frame,False)
             logger.info("openpose>>>" + str(time.time() - st))
             #gene service
             kp = keypoints.reshape(-1,75)
@@ -147,8 +137,7 @@ def pross():
                 new_pid = str(keypointdata['new_pid'])
                 keypoint = keypointdata['box_pose_pos']
                 x1, x2, y1, y2 = keypointdata["box_pos"]
-                print("box_pos" + str(x1) + "," + str(x2) + ","+ str(y1) + ","+ str(y2))
-                cv2.putText(image, new_pid, (x1+10, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.putText(image, new_pid, (x1+10, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                 userBuleData = redis.get("user_bule_" + new_pid)
                 if userBuleData is None:
                     userBuleData = pickle.dumps(False)
@@ -162,8 +151,8 @@ def pross():
                         if bule_list is not None:
                             bule_count = 0
                             for bule_score_data in bule_list:
-                                if float(bule_score_data) >= APM_BULE_SCORE:
-                                    if bule_count >= APM_BULE_COUNT:
+                                if float(bule_score_data) >= 0.6:
+                                    if bule_count >= 3:
                                         user_bule_flag = True
                                         break
                                     bule_count = bule_count + 1
@@ -255,7 +244,7 @@ def pross():
                                     imageArray['apm'] = True
                                     save_path = "{}/{:>03s}.jpg".format("/home/woody/tmp/openpose/test", str(imageArray['key']))
                                     cv2.imwrite(save_path, imageArray["image"])
-                                    redis.hset("key", str(count), pickle.dumps(imageArray["image"]))
+                                    websocket_server.notify("test : " + str(imageArray['key']))
                                     image_data = {}
                                     image_data["key"] = key
                                     image_data["image"] = image
@@ -276,7 +265,7 @@ def pross():
                         if imageArray['apm'] == False:
                             if imageArray['count'] > E_COUNT:
                                 cv2.imwrite(save_path, imageArray["image"])
-                                redis.hset("key", str(count), pickle.dumps(imageArray["image"]))
+                                websocket_server.notify("test : " + str(imageArray['key']))
                                 image_data = {}
                                 image_data["key"] = key
                                 image_data["image"] = image
@@ -303,7 +292,7 @@ def pross():
                         if imageArray['apm'] == False:
                             if imageArray['count'] > E_COUNT:
                                 cv2.imwrite(save_path, imageArray["image"])
-                                redis.hset("key", str(count), pickle.dumps(imageArray["image"]))
+                                websocket_server.notify("test : " + str(imageArray['key']))
                                 #image_data = {}
                                 #image_data["key"] = key
                                 #image_data["image"] = image
@@ -326,7 +315,7 @@ def pross():
         if imageArray['apm'] == False:
             if imageArray['count'] > E_COUNT:
                 cv2.imwrite(save_path, imageArray["image"])
-                redis.hset("key", str(count), pickle.dumps(imageArray["image"]))
+                websocket_server.notify("test : " + str(imageArray['key']))
                 #image_data = {}
                 #image_data["key"] = key
                 #image_data["image"] = image
@@ -340,9 +329,9 @@ def pross():
     logger.info("Totally save {:d} pics".format(index - 1))
 
 
-def calcHipAngle(x1, y1, x2, y2, x3, y3):
+def calcHipAngle(x1,y1,x2,y2,x3,y3):
     if x1 == 0 or y1 == 0 or x2 == 0 or y2 == 0 or x3 == 0 or y3 == 0:
-        return 0, False
+        return 0,False
     a2 = (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)
     b2 = (x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)
     c2 = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)
@@ -354,13 +343,13 @@ def calcHipAngle(x1, y1, x2, y2, x3, y3):
     realangle = angle*180/cmath.pi
     logger.info("calcHipAngle:" + str(realangle.real));
     if (realangle.real >= 30 and realangle.real <= 140) :
-        return realangle.real, True
+        return realangle.real,True
     else:
-        return realangle.real, False
+        return realangle.real,False
 
 def calcKneeAngle(x1,y1,x2,y2,x3,y3):
     if x1 == 0 or y1 == 0 or x2 == 0 or y2 == 0 or x3 == 0 or y3 == 0:
-        return 0, False
+        return 0,False
     a2 = (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)
     b2 = (x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)
     c2 = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)
@@ -372,14 +361,13 @@ def calcKneeAngle(x1,y1,x2,y2,x3,y3):
     realangle = angle*180/cmath.pi
     logger.info("calcKneeAngle:" + str(realangle.real))
     if (realangle.real <= 140) :
-        return realangle.real, True
+        return realangle.real,True
     else:
-        return realangle.real, False
-
+        return realangle.real,False
 
 def calcLenRate(x1,y1,x2,y2,x3,y3):
     if x1 == 0 or y1 == 0 or x2 == 0 or y2 == 0 or x3 == 0 or y3 == 0:
-        return 0, False
+        return 0,False
     a2 = (x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)
     b2 = (x3-x2)*(x3-x2)+(y3-y2)*(y3-y2)
     c2 = (x1-x3)*(x1-x3)+(y1-y3)*(y1-y3)
@@ -391,87 +379,10 @@ def calcLenRate(x1,y1,x2,y2,x3,y3):
     result = max(a.real, b.real)/d.real
     logger.info("calcLenRate:" + str(result))
     if result >= 0.8 and result <= 1.2 :
-        return result, False
+        return result,False
     else:
-        return result, True
-
-
-def calcBuleRate(image, left0, left1, right0, right1):
-    hsvImage = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    hsvSplit = cv2.split(hsvImage)
-    cv2.equalizeHist(hsvSplit[2], hsvSplit[2])
-    cv2.merge(hsvSplit, hsvImage)
-    thresholded = cv2.inRange(hsvImage, np.array(LOW_COLOR_SCALAR), np.array(HIGH_COLOR_SCALAR))
-
-    element = cv2.getStructuringElement(cv2.MORPH_RECT,(5, 5))
-
-    thresholded = cv2.morphologyEx(thresholded,cv2.MORPH_OPEN,element)
-
-    thresholded = cv2.morphologyEx(thresholded,cv2.MORPH_CLOSE,element)
-
-    rateValue = APM_BULE_SCORE
-
-    box = np.array([[left0, left1, right0, right1]], dtype = np.int32)
-    maskImage = np.zeros(image.shape[:2], dtype = "uint8")
-    cv2.polylines(maskImage, box, 1, 255)
-    totalArea = calcTotalArea(cv2.fillPoly(maskImage, box, 255))
-
-    blueArea = calcBlueArea(cv2.bitwise_and(thresholded, thresholded, mask=maskImage))
-    #cv2.imshow("maskImage",cv2.bitwise_and(thresholded, thresholded, mask=maskImage))
-    #cv2.waitKey(0)
-    mleft0 = [(left0[0]*2/3)+(left1[0]/3),(left0[1]*2/3)+(left1[1]/3)]
-    mleft1 = [(left0[0]*1/3)+(left1[0]*2/3),(left0[1]*1/3)+(left1[1]*2/3)]
-    mright1 = [(right0[0]*1/3)+(right1[0]*2/3),(right0[1]*1/3)+(right1[1]*2/3)]
-    mright0 = [(right0[0]*2/3)+(right1[0]/3),(right0[1]*2/3)+(right1[1]/3)]
-    mblueArea = 0
-    mtotalArea = 0
-    if totalArea == 0:
-        return False, 0
-    if (blueArea/totalArea) >= rateValue:
-        return True, blueArea/totalArea
-
-    if (blueArea/totalArea) < rateValue and rateValue == APM_BULE_SCORE:
-        mbox = np.array([[mleft0,mleft1, mright0, mright1]], dtype = np.int32)
-        mmaskImage = np.zeros(image.shape[:2], dtype = "uint8")
-        cv2.polylines(mmaskImage, mbox, 1, 255)
-        mtotalArea = calcTotalArea(cv2.fillPoly(mmaskImage, mbox, 255))
-        mblueArea = calcBlueArea(cv2.bitwise_and(thresholded, thresholded, mask=mmaskImage))
-
-    if totalArea-mtotalArea == 0:
-        return False, 0
-    #print(((blueArea-mblueArea)/(totalArea-mtotalArea)))
-    return ((blueArea-mblueArea)/(totalArea-mtotalArea)) >= rateValue,(blueArea-mblueArea)/(totalArea-mtotalArea)
-
-def calcTotalArea(maskImage):
-    _, binary = cv2.threshold(maskImage, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-    _, contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-    area = cv2.contourArea(contours[0])
-    return area
-
-def calcBlueArea(maskedImage):
-    _, binary = cv2.threshold(maskedImage, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    _, contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    blueArea = 0
-    for contour in contours:
-        area = cv2.contourArea(contour)
-        blueArea += area
-    return blueArea
+        return result,True
 
 
 if __name__ == '__main__':
-    #设置连续多少帧数有做坐报警
-    APM_TOTAIL = 8
-    #设置蓝色分数比例
-    APM_BULE_SCORE = 0.6
-    #设置蓝大于色分数比例次数，表示为True
-    APM_BULE_COUNT = 3
-
-    #检查是否连续多少帧数没有坐下数据
-    E_TOTAIL = 10
-    E_COUNT = 5
-
-    LOW_COLOR_SCALAR = [92, 79, 25]
-    HIGH_COLOR_SCALAR = [140, 255, 255]
     pross()
