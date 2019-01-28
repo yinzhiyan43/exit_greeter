@@ -30,19 +30,18 @@ except:
 global servers
 servers = []
 
-#设置连续多少帧数有做坐报警
+
 APM_TOTAIL = 8
-#设置蓝色分数比例
+
 APM_BULE_SCORE = 0.4
-#设置蓝大于色分数比例次数，表示为True
+
 APM_BULE_COUNT = 3
 
-#检查是否连续多少帧数没有坐下数据
+
 E_TOTAIL = 10
-#在某段次数超过该数，就判断是坐行为
+
 E_COUNT = 5
 
-#颜色范围设置
 #LOW_COLOR_SCALAR = [105, 48, 111]
 #HIGH_COLOR_SCALAR = [126, 210, 255]
 
@@ -113,7 +112,8 @@ def pross():
        _, frame = video.read()
        if frame is None:
           break
-       base64_data = frame2base64(frame)
+       frame_push = cv2.resize(frame, (int(frame.shape[1]/2), int(frame.shape[0]/2)), interpolation=cv2.INTER_AREA)
+       base64_data = frame2base64(frame_push)
        data_json = {}
        data_json["type"] = 1
        data_json["image"] = "data:image/jpeg;base64," + base64_data.decode()
@@ -211,8 +211,8 @@ def pross():
                                         imageArray['apm'] = True
                                         save_path = "{}/{:>03s}.jpg".format("/home/woody/tmp/openpose/test", str(imageArray['key']))
                                         cv2.imwrite(save_path, imageArray["image"])
-
-                                        base64_data = frame2base64(imageArray["image"])
+                                        frame_push = cv2.resize(imageArray["image"], (int(imageArray["image"].shape[1]/2), int(imageArray["image"].shape[0]/2)), interpolation=cv2.INTER_AREA)
+                                        base64_data = frame2base64(frame_push)
                                         data_json = {}
                                         data_json["type"] = 2
                                         data_json["image"] = "data:image/jpeg;base64," + base64_data.decode()
@@ -241,7 +241,8 @@ def pross():
                                 if imageArray['count'] >= APM_TOTAIL:
                                     imageArray['apm'] = True
                                     cv2.imwrite(save_path, imageArray["image"])
-                                    base64_data = frame2base64(imageArray["image"])
+                                    frame_push = cv2.resize(imageArray["image"], (int(imageArray["image"].shape[1]/2), int(imageArray["image"].shape[0]/2)), interpolation=cv2.INTER_AREA)
+                                    base64_data = frame2base64(frame_push)
                                     data_json = {}
                                     data_json["type"] = 2
                                     data_json["image"] = "data:image/jpeg;base64," + base64_data.decode()
@@ -280,7 +281,8 @@ def pross():
                             if imageArray['count'] >= APM_TOTAIL:
                                 imageArray['apm'] = True
                                 cv2.imwrite(save_path, imageArray["image"])
-                                base64_data = frame2base64(imageArray["image"])
+                                frame_push = cv2.resize(imageArray["image"], (int(imageArray["image"].shape[1]/2), int(imageArray["image"].shape[0]/2)), interpolation=cv2.INTER_AREA)
+                                base64_data = frame2base64(frame_push)
                                 data_json = {}
                                 data_json["type"] = 2
                                 data_json["image"] = "data:image/jpeg;base64," + base64_data.decode()
@@ -310,7 +312,8 @@ def pross():
                 if imageArray['count'] >= APM_TOTAIL:
                     imageArray['apm'] = True
                     cv2.imwrite(save_path, imageArray["image"])
-                    base64_data = frame2base64(imageArray["image"])
+                    frame_push = cv2.resize(imageArray["image"], (int(imageArray["image"].shape[1]/2), int(imageArray["image"].shape[0]/2)), interpolation=cv2.INTER_AREA)
+                    base64_data = frame2base64(frame_push)
                     data_json = {}
                     data_json["type"] = 2
                     data_json["image"] = "data:image/jpeg;base64," + base64_data.decode()
@@ -468,12 +471,12 @@ def message_received(client, server, message):
                 server.send_message(client, str(json.dumps(data_json)))
 
 def frame2base64(frame):
-    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) #将每一帧转为Image
-    output_buffer = BytesIO() #创建一个BytesIO
-    img.save(output_buffer, format='JPEG') #写入output_buffer
-    byte_data = output_buffer.getvalue() #在内存中读取
-    base64_data = base64.b64encode(byte_data) #转为BASE64
-    return base64_data #转码成功 返回base64编码
+    img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    output_buffer = BytesIO()
+    img.save(output_buffer, format='JPEG')
+    byte_data = output_buffer.getvalue()
+    base64_data = base64.b64encode(byte_data)
+    return base64_data
 
 
 
